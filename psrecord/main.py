@@ -90,6 +90,10 @@ def main():
                              'in a slower maximum sampling rate).',
                         action='store_true')
 
+    parser.add_argument('--use-unix-ts',
+                        help='When used, time would be logged in unix timestamp',
+                        action='store_true')
+
     args = parser.parse_args()
 
     # Attach to process
@@ -106,14 +110,15 @@ def main():
         pid = sprocess.pid
 
     monitor(pid, logfile=args.log, plot=args.plot, duration=args.duration,
-            interval=args.interval, include_children=args.include_children)
+            interval=args.interval, include_children=args.include_children,
+            use_unix_ts=args.use_unix_ts)
 
     if sprocess is not None:
         sprocess.kill()
 
 
 def monitor(pid, logfile=None, plot=None, duration=None, interval=None,
-            include_children=False):
+            include_children=False, use_unix_ts=False):
 
     # We import psutil here so that the module can be imported even if psutil
     # is not present (for example if accessing the version)
@@ -144,6 +149,8 @@ def monitor(pid, logfile=None, plot=None, duration=None, interval=None,
 
             # Find current time
             current_time = time.time()
+            logged_time = (current_time - start_time) if not use_unix_ts \
+                else current_time
 
             try:
                 pr_status = pr.status()
@@ -155,7 +162,7 @@ def monitor(pid, logfile=None, plot=None, duration=None, interval=None,
             # Check if process status indicates we should exit
             if pr_status in [psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD]:
                 print("Process finished ({0:.2f} seconds)"
-                      .format(current_time - start_time))
+                      .format(logged_time))
                 break
 
             # Check if we have reached the maximum time
@@ -184,7 +191,7 @@ def monitor(pid, logfile=None, plot=None, duration=None, interval=None,
 
             if logfile:
                 stat_writer.writerow({
-                    'time': current_time - start_time,
+                    'time': logged_time,
                     'cpu': current_cpu,
                     'mem_real': current_mem_real,
                     'mem_virtual': current_mem_virtual})
@@ -195,7 +202,7 @@ def monitor(pid, logfile=None, plot=None, duration=None, interval=None,
 
             # If plotting, record the values
             if plot:
-                log['times'].append(current_time - start_time)
+                log['times'].append(logged_time)
                 log['cpu'].append(current_cpu)
                 log['mem_real'].append(current_mem_real)
                 log['mem_virtual'].append(current_mem_virtual)
