@@ -39,10 +39,7 @@ def get_percent(process):
 
 
 def get_memory(process):
-    try:
-        return process.memory_info()
-    except AttributeError:
-        return process.get_memory_info()
+    return process.memory_full_info()
 
 
 def all_children(pr):
@@ -143,6 +140,8 @@ def monitor(pid, logfile=None, plot=None, duration=None, interval=None,
     log['mem_virtual'] = []
 
     try:
+        # Gather first CPU metric and don't use it, as mentioned in the documentation.
+        current_cpu = get_percent(pr)
 
         # Start main event loop
         while True:
@@ -175,7 +174,7 @@ def monitor(pid, logfile=None, plot=None, duration=None, interval=None,
                 current_mem = get_memory(pr)
             except Exception:
                 break
-            current_mem_real = current_mem.rss / 1024. ** 2
+            current_mem_real = current_mem.pss / 1024. ** 2
             current_mem_virtual = current_mem.vms / 1024. ** 2
 
             # Get information for children
@@ -186,7 +185,7 @@ def monitor(pid, logfile=None, plot=None, duration=None, interval=None,
                         current_mem = get_memory(child)
                     except Exception:
                         continue
-                    current_mem_real += current_mem.rss / 1024. ** 2
+                    current_mem_real += current_mem.pss / 1024. ** 2
                     current_mem_virtual += current_mem.vms / 1024. ** 2
 
             if logfile:
